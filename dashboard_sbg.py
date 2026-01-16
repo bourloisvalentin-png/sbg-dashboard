@@ -24,11 +24,10 @@ st.set_page_config(
 # =========================
 # GITHUB 
 FICHIER_MASTER = "BASE_TRAVAIL.xlsx"  # Même dossier que .py
-#FICHIER_MASTER = Path(DOSSIER_RACINE) / "BASE_TRAVAIL.xlsx"
 
 # Colonnes d'identification à exclure
 COL_IDENTIFICATION = [
-    'inputId', 'numReponse', 'programme', 'date'
+    'inputId', 'numReponse', 'programme', 'date', 'Statuts'
 ]
 
 # =========================
@@ -49,6 +48,13 @@ def charger_base(filename: str) -> pd.DataFrame:
 def detecter_colonne_programme(df: pd.DataFrame) -> str | None:
     """Détecte la colonne programme (exactement 'programme')."""
     return 'programme' if 'programme' in df.columns else None
+
+def detecter_colonne_statut(df: pd.DataFrame) -> str | None:
+    """Détecte la colonne statut (en cours, terminé, etc.)."""
+    for col in ['Statuts']:
+        if col in df.columns:
+            return col
+    return None
 
 def colonnes_analyse_disponibles(df: pd.DataFrame) -> list[str]:
     """Retourne les colonnes numériques pour analyse (hors identification)."""
@@ -91,6 +97,8 @@ if df.empty:
 st.success(f"✅ Base chargée : {len(df)} lignes, {len(df.columns)} colonnes.")
 
 COL_PROG = detecter_colonne_programme(df)
+COL_STATUT = detecter_colonne_statut(df)
+
 if COL_PROG is None:
     st.error("❌ Colonne 'programme' non trouvée.")
     st.stop()
@@ -102,6 +110,23 @@ colonnes_analyse = colonnes_analyse_disponibles(df)
 # =========================
 with st.sidebar:
     st.title("⚙️ Paramètres")
+    st.markdown("---")
+    
+    #Statut
+    st.header("📋 Statut")
+    if COL_STATUT and COL_STATUT in df.columns:
+        statuts_dispo = sorted(df[COL_STATUT].dropna().unique())
+        selected_statuts = st.multiselect(
+            "Sélectionnez statut(s)",
+            options=statuts_dispo,
+            default=statuts_dispo if len(statuts_dispo) <= 2 else None,  # ✅ Auto-sélection si 2 max
+            help="Filtre par statut (en cours, terminé...)"
+        )
+        st.caption(f"Disponibles : {len(statuts_dispo)}")
+    else:
+        selected_statuts = []
+        st.warning("⚠️ Colonne statut non détectée")
+    
     st.markdown("---")
     
     # Programme
@@ -135,11 +160,18 @@ with st.sidebar:
     afficher_apercu = st.checkbox("Afficher l'aperçu", value=True)
     afficher_global = st.checkbox("Afficher analyses globales", value=True)
     
-# Filtres
+# =========================
+# FILTRES SÉQUENTIELS ✅
+# =========================
+df_filtre = df.copy()
+
+# 1. Filtre STATUT (PRIORITÉ)
+if selected_statuts and COL_STATUT:
+    df_filtre = df_filtre[df_filtre[COL_STATUT].isin(selected_statuts)].copy()
+
+# 2. Filtre PROGRAMME
 if selected_progs:
-    df_filtre = df[df[COL_PROG].isin(selected_progs)].copy()
-else:
-    df_filtre = df.copy()
+    df_filtre = df_filtre[df_filtre[COL_PROG].isin(selected_progs)].copy()
 
 nb_individus = df_filtre['inputId'].nunique() if 'inputId' in df_filtre.columns else len(df_filtre)
 
@@ -155,6 +187,7 @@ with col3: st.metric("Colonnes", len(selected_cols))
 with col4: st.metric("Individus", nb_individus)
 
 infos_filtre = []
+if selected_statuts: infos_filtre.append(f"{len(selected_statuts)} statut(s)")
 if selected_progs: infos_filtre.append(f"{len(selected_progs)} prog")
 if selected_cols: infos_filtre.append(f"{len(selected_cols)} cols")
 if infos_filtre:
