@@ -77,8 +77,8 @@ def toggle_apercu(df_filtre: pd.DataFrame, selected_cols: list, afficher: bool) 
 # =========================
 st.title("📊 SBG - Tableau de bord")
 
-with st.spinner("Chargement Google Drive..."):
-    df = charger_base(DRIVE_ID)
+with st.spinner("Chargement des données..."):
+    df = charger_base(FICHIER_MASTER)
 
 if df.empty:
     st.error("❌ Impossible de charger `BASE_TRAVAIL.xlsx`.")
@@ -339,3 +339,4 @@ T2 (M = {df_wide['T2'].mean():.1f}, ET = {et_t2:.1f})
 else:
 
     st.error(f"❌ Pas de paires T1/T2 dans `{col_t}`")
+
