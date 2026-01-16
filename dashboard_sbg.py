@@ -48,10 +48,7 @@ def charger_base(filename: str) -> pd.DataFrame:
 
 def detecter_colonne_programme(df: pd.DataFrame) -> str | None:
     """Détecte la colonne programme (exactement 'programme')."""
-    return 'programme' if 'programme' in df.columns else None[':
-        if col in df.columns:
-            return col
-    return None
+    return 'programme' if 'programme' in df.columns else None
 
 def colonnes_analyse_disponibles(df: pd.DataFrame) -> list[str]:
     """Retourne les colonnes numériques pour analyse (hors identification)."""
