@@ -28,8 +28,7 @@ FICHIER_MASTER = "BASE_TRAVAIL.xlsx"  # Même dossier que .py
 
 # Colonnes d'identification à exclure
 COL_IDENTIFICATION = [
-    'inputId', 'numReponse', 'programme', 'date', 'nom', 
-    'prenom', 'Age', 'Sexe', 'Fonction', 'autre'
+    'inputId', 'numReponse', 'programme', 'date'
 ]
 
 # =========================
