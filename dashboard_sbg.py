@@ -51,7 +51,7 @@ def detecter_colonne_programme(df: pd.DataFrame) -> str | None:
 
 def detecter_colonne_statut(df: pd.DataFrame) -> str | None:
     """Détecte la colonne statut (en cours, terminé, etc.)."""
-    for col in ['Statuts']:
+    for col in ['Statuts', 'statut', 'Statut', 'STATUS', 'etat', 'Etat', 'ETAT', 'Status']:
         if col in df.columns:
             return col
     return None
@@ -113,19 +113,21 @@ with st.sidebar:
     st.markdown("---")
     
     #Statut
-    st.header("📋 Statut")
-    if COL_STATUT and COL_STATUT in df.columns:
-        statuts_dispo = sorted(df[COL_STATUT].dropna().unique())
-        selected_statuts = st.multiselect(
-            "Sélectionnez statut(s)",
-            options=statuts_dispo,
-            default=statuts_dispo if len(statuts_dispo) <= 2 else None,  # ✅ Auto-sélection si 2 max
-            help="Filtre par statut (en cours, terminé...)"
-        )
-        st.caption(f"Disponibles : {len(statuts_dispo)}")
-    else:
-        selected_statuts = []
-        st.warning("⚠️ Colonne statut non détectée")
+st.header("📋 Statut")
+if COL_STATUT and COL_STATUT in df.columns:
+    statuts_dispo = sorted(df[COL_STATUT].dropna().unique())
+    st.info(f"✅ Colonne trouvée : '{COL_STATUT}' ({len(statuts_dispo)} valeurs)")
+    selected_statuts = st.multiselect(
+        "Sélectionnez statut(s)",
+        options=statuts_dispo,
+        default=statuts_dispo[:2] if len(statuts_dispo) >= 2 else statuts_dispo,  # Plus safe
+        help="Filtre par statut (en cours, terminé...)"
+    )
+    st.caption(f"Disponibles : {statuts_dispo}")
+else:
+    st.error(f"❌ Colonne '{COL_STATUT}' non trouvée")
+    st.info("Colonnes disponibles : " + ", ".join(df.columns.tolist()))
+    selected_statuts = []
     
     st.markdown("---")
     
