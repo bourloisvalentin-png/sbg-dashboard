@@ -49,10 +49,9 @@ def detecter_colonne_programme(df: pd.DataFrame) -> str | None:
     return 'programme' if 'programme' in df.columns else None
 
 def detecter_colonne_statut(df: pd.DataFrame) -> str | None:
-    """Détecte colonne Statuts (flexible)."""
-    for col in ['Statuts', 'statut', 'Statut', 'STATUS', 'etat', 'Etat']:
-        if col in df.columns:
-            return col
+    """Détecte Statuts."""
+    if 'Statuts' in df.columns:
+        return 'Statuts'
     return None
 
 def colonnes_analyse_disponibles(df: pd.DataFrame) -> list[str]:
@@ -111,18 +110,19 @@ with st.sidebar:
     
     # ✅ STATUT (NOUVEAU - AVANT Programme)
     st.header("📋 Statut")
-    if COL_STATUT and COL_STATUT in df.columns:
+    COL_STATUT = 'Statuts'
+    
+    if COL_STATUT in df.columns:
         statuts_dispo = sorted(df[COL_STATUT].dropna().unique())
         selected_statuts = st.multiselect(
             "Sélectionnez statut(s)",
             options=statuts_dispo,
-            help="Filtre par statut"
+            help="Filtre en cours/terminé"
         )
         st.caption(f"({len(statuts_dispo)} disponibles)")
     else:
         selected_statuts = []
-        st.warning("⚠️ Colonne Statuts non trouvée")
-    
+        st.warning("⚠️ Colonne Statuts absente")
     st.markdown("---")
     
     # Programme
@@ -194,55 +194,97 @@ else:
 toggle_apercu(df_filtre, selected_cols, afficher_apercu)
 
 # =========================
-# ANALYSES GLOBALES
+# ANALYSES
 # =========================
-if selected_cols and len(df_filtre) > 0 and afficher_global:
-    st.markdown("---")
-    
-    # Histogrammes
-    st.subheader("📊 Distributions")
-    cols_par_ligne = 3
-    for i in range(0, len(selected_cols), cols_par_ligne):
-        cols_chunk = selected_cols[i:i+cols_par_ligne]
-        cols_layout = st.columns(cols_par_ligne)
-        for j, col in enumerate(cols_chunk):
-            with cols_layout[j]:
-                fig = px.histogram(df_filtre, x=col, title=col, height=300)
-                st.plotly_chart(fig, use_container_width=True)
+if selected_cols and len(df_filtre) > 0:
 
-# =========================
-# TESTS T1/T2
-# =========================
+    # SECTION 1 : GLOBAL
+    if afficher_global:
+        st.markdown("---")
+        
+        # 1. Histogrammes
+        st.subheader("📊 Distributions")
+        cols_par_ligne = 3
+        for i in range(0, len(selected_cols), cols_par_ligne):
+            cols_chunk = selected_cols[i:i+cols_par_ligne]
+            cols_layout = st.columns(cols_par_ligne)
+            for j, col in enumerate(cols_chunk):
+                with cols_layout[j]:
+                    fig = px.histogram(df_filtre, x=col, title=col, height=300)
+                    st.plotly_chart(fig, use_container_width=True)
+        
+        # 2. Boxplots par programme
+        if selected_progs and len(selected_progs) <= 6:
+            st.subheader("📦 Par programme")
+            for col in selected_cols[:3]:
+                fig = px.box(df_filtre, x=COL_PROG, y=col, 
+                           points="all", height=450, title=f"{col}")
+                st.plotly_chart(fig, use_container_width=True)
+        
+        # 3. Moyennes par programme
+        st.subheader("📈 Moyennes/programme")
+        if len(selected_cols) >= 1:
+            pivot = df_filtre.pivot_table(values=selected_cols[:3], index=COL_PROG, aggfunc='mean')
+            fig = px.bar(pivot.reset_index(), x=COL_PROG, y=selected_cols[:3], barmode='group')
+            st.plotly_chart(fig, use_container_width=True)
+    
+    else:
+        st.info("☐ **Cocher 'Analyses globales' dans sidebar**")
+
+# SECTION 2 : Tests T1 vs T2 (MODIFIÉ)
 st.markdown("---")
-st.subheader("🧪 Tests T1 vs T2")
+st.subheader("🧪 Tests Statistiques Appariés T1 vs T2")
 
 col_t = next((c for c in ['numReponse', 'num_reponse', 'T'] if c in df_filtre.columns), None)
 
 if col_t and 1 in df_filtre[col_t].values and 2 in df_filtre[col_t].values:
-    # Sidebar tests
+    st.success(f"✅ **{col_t} détecté** : {sum(df_filtre[col_t]==1)} T1, {sum(df_filtre[col_t]==2)} T2")
+    
+    # 🔥 SIDEBAR T1/T2 (UNE SEULE FOIS)
     with st.sidebar:
         st.markdown("---")
         st.header("🔬 Tests T1/T2")
-        selected_test = st.radio("Test", ["Auto", "t-test", "Wilcoxon"], key="test")
-        show_dist = st.checkbox("Distributions", value=True, key="dist")
+        selected_test = st.radio(
+            "Choisir test",
+            ["Auto (recommandé)", "t-test apparié", "Wilcoxon signed-rank"],
+            key="test_t1t2",
+            help="Auto détecte normalité des Δ"
+        )
+        st.markdown("📊")
+        show_dist = st.checkbox("📈 Distributions T1/T2", value=True, key="dist_t1t2")
     
+    # 🔥 BOUCLE PAR COLONNE
     for col in selected_cols:
-        df_wide = (df_filtre[df_filtre[col_t].isin([1,2])]
-                  .groupby(['inputId', col_t])[col].first().unstack()
-                  .rename(columns={1: 'T1', 2: 'T2'})
-                  .dropna(subset=['T1', 'T2'])
-                  .assign(delta=lambda x: x['T2'] - x['T1'])
-                  .reset_index())
+        df_wide = (
+            df_filtre[df_filtre[col_t].isin([1,2])]
+            .groupby(['inputId', col_t])[col]
+            .first().unstack(level=1)
+            .rename(columns={1: 'T1', 2: 'T2'})
+            .dropna(subset=['T1', 'T2'])
+            .assign(delta=lambda x: x['T2'] - x['T1'])
+            .reset_index()
+        )
         
         if df_wide.empty: 
-            st.warning(f"⚠️ Pas de paires T1/T2 pour {col}")
+            st.warning(f"⚠️ Pas de paires T1/T2 pour **{col}**")
             continue
         
-        # Métriques
-        col1, col2, col3 = st.columns(3)
-        with col1: st.metric("T1", f"{df_wide['T1'].mean():.1f}")
-        with col2: st.metric("T2", f"{df_wide['T2'].mean():.1f}")
-        with col3: st.metric("n", len(df_wide))
+        n_paires = len(df_wide)
+        
+        # 🔥 5 COLONNES : T1 | T2 | n | Test | p
+        col1, col2, col3, col4, col5 = st.columns(5)
+        
+        # T1 mean ± SD
+        with col1:
+            st.metric("T1", f"{df_wide['T1'].mean():.1f}", f"±{df_wide['T1'].std():.1f}")
+        
+        # T2 mean ± SD  
+        with col2:
+            st.metric("T2", f"{df_wide['T2'].mean():.1f}", f"±{df_wide['T2'].std():.1f}")
+        
+        # n paires
+        with col3:
+            st.metric("n", n_paires)
         
         # 🔥 TESTS CALCULÉS ICI (côte-à-côte)
         shapiro_p = stats.shapiro(df_wide['delta'])[1]
