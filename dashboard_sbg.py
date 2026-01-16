@@ -22,10 +22,9 @@ st.set_page_config(
 # =========================
 # CONSTANTES / CHEMINS
 # =========================
-#DOSSIER_RACINE = r"C:\Users\Bourl\OneDrive\Recherche\SBG\Dashboard_SBG"
+# GITHUB 
+FICHIER_MASTER = "BASE_TRAVAIL.xlsx"  # Même dossier que .py
 #FICHIER_MASTER = Path(DOSSIER_RACINE) / "BASE_TRAVAIL.xlsx"
-
-DRIVE_ID = "1dJrtOXoKuLR-W1Vr36zc7AbpRjTsM4XW"
 
 # Colonnes d'identification à exclure
 COL_IDENTIFICATION = [
@@ -36,20 +35,12 @@ COL_IDENTIFICATION = [
 # =========================
 # FONCTIONS
 # =========================
-
 @st.cache_data
-def charger_base(drive_id: str) -> pd.DataFrame:
-    if not drive_id:
+def charger_base(path: Path) -> pd.DataFrame:
+    """Charge la base de travail si elle existe, sinon renvoie un DF vide."""
+    if not path.exists():
         return pd.DataFrame()
-    url = f"https://drive.google.com/uc?export=download&id={drive_id}"
-    try:
-        return pd.read_excel(url)
-    except:
-        st.error("❌ Erreur chargement Drive")
-        return pd.DataFrame()
-
-# Dans main :
-df = charger_base(DRIVE_ID)
+    return pd.read_excel(path, sheet_name=0)
 
 def detecter_colonne_programme(df: pd.DataFrame) -> str | None:
     """Détecte la colonne programme (exactement 'programme')."""
@@ -346,4 +337,5 @@ T2 (M = {df_wide['T2'].mean():.1f}, ET = {et_t2:.1f})
         st.markdown("---")
 
 else:
+
     st.error(f"❌ Pas de paires T1/T2 dans `{col_t}`")
