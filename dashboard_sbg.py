@@ -36,11 +36,16 @@ COL_IDENTIFICATION = [
 # FONCTIONS
 # =========================
 @st.cache_data
-def charger_base(path: Path) -> pd.DataFrame:
-    """Charge la base de travail si elle existe, sinon renvoie un DF vide."""
-    if not path.exists():
+def charger_base(filename: str) -> pd.DataFrame:
+    """Charge Excel depuis repo GitHub."""
+    try:
+        return pd.read_excel(filename)
+    except FileNotFoundError:
+        st.error(f"❌ Fichier `{filename}` manquant dans repo GitHub")
+        st.stop()
+    except Exception as e:
+        st.error(f"❌ Erreur lecture Excel : {e}")
         return pd.DataFrame()
-    return pd.read_excel(path, sheet_name=0)
 
 def detecter_colonne_programme(df: pd.DataFrame) -> str | None:
     """Détecte la colonne programme (exactement 'programme')."""
@@ -339,4 +344,5 @@ T2 (M = {df_wide['T2'].mean():.1f}, ET = {et_t2:.1f})
 else:
 
     st.error(f"❌ Pas de paires T1/T2 dans `{col_t}`")
+
 
